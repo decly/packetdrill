@@ -704,13 +704,12 @@ void parse_and_finalize_config(struct invocation *invocation)
 {
 	DEBUGP("parse_and_finalize_config\n");
 
+	/* Command line options overwirte options in script */
+	parse_command_line_options(invocation->argc, invocation->argv,
+					   invocation->config);
 	/* Parse options in script */
 	parse_script_options(invocation->config,
 			     invocation->script->option_list);
-
-	/* Command line options overwrite options in script */
-	parse_command_line_options(invocation->argc, invocation->argv,
-					   invocation->config);
 
 	/* Now take care of the last details */
 	finalize_config(invocation->config);
