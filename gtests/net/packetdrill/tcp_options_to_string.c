@@ -24,6 +24,7 @@
 
 #include "tcp_options_to_string.h"
 
+#include "tcp_options.h"
 #include "tcp_options_iterator.h"
 
 /* If the MD5 digest option is in the valid range of sizes, print the MD5
@@ -69,6 +70,21 @@ static int tcp_fast_open_option_to_string(FILE *s, struct tcp_option *option,
 	for (i = 0; i < cookie_bytes; ++i)
 		fprintf(s, "%02x", exp ? option->data.fast_open_exp.cookie[i] :
 					 option->data.fast_open.cookie[i]);
+	return STATUS_OK;
+}
+
+static int tcp_hex_option_to_string(FILE *s, struct tcp_option *option)
+{
+	int digest_bytes, i;
+
+	if (option->length < TCP_HEX_OPTION_BASE ||
+	    option->length > MAX_TCP_HEX_OPTION_BYTES + TCP_HEX_OPTION_BASE)
+		return STATUS_ERR;
+
+	digest_bytes = option->length - TCP_HEX_OPTION_BASE;
+	fprintf(s, "hex %02x%02x", option->kind, option->length);
+	for (i = 0; i < digest_bytes; ++i)
+		fprintf(s, "%02x", option->data.hex.data[i]);
 	return STATUS_OK;
 }
 
@@ -149,9 +165,8 @@ int tcp_options_to_string(struct packet *packet,
 			break;
 
 		default:
-			asprintf(error, "unexpected TCP option kind: %u",
-				 option->kind);
-			goto out;
+			tcp_hex_option_to_string(s, option);
+			break;
 		}
 		++index;
 	}

@@ -55,6 +55,11 @@
 #define MAX_TCP_FAST_OPEN_EXP_COOKIE_BYTES			\
 	(MAX_TCP_OPTION_BYTES - TCPOLEN_EXP_FASTOPEN_BASE)
 
+/* tcp option hex string: 1-byte kind, 1-byte length */
+#define TCP_HEX_OPTION_BASE		2
+/* Data length of custom tcp options in hexadecimal */
+#define MAX_TCP_HEX_OPTION_BYTES	20
+
 /* Represents a list of TCP options in their wire format. */
 struct tcp_options {
 	u8 data[MAX_TCP_OPTION_BYTES];	/* The options data, in wire format */
@@ -104,6 +109,9 @@ struct tcp_option {
 			u16 magic;	/* must be TCPOPT_FASTOPEN_MAGIC */
 			u8 cookie[MAX_TCP_FAST_OPEN_EXP_COOKIE_BYTES];
 		} fast_open_exp;
+		struct {
+			u8 data[MAX_TCP_HEX_OPTION_BYTES];
+		} hex;
 	} data;
 } __packed;
 

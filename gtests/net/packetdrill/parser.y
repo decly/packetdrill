@@ -470,6 +470,59 @@ static struct tcp_option *new_md5_option(const char *digest_string,
 	return option;
 }
 
+/* Input tcp option in hexadecimal string.
+ * Such as
+ *	< hex 420601020304 >
+ * means
+ *	tcp option { kind = 0x42, opsize = 0x06, data = 0x01020304 }
+ */
+static struct tcp_option *tcp_option_hex_string(const char *hex_string,
+						char **error)
+{
+	struct tcp_option *option;
+	int parsed_bytes = 0;
+	u8 length;
+	u8 kind;
+	int hex_string_len = strlen(hex_string);
+	if (hex_string_len & 1) {
+		asprintf(error, "TCP option hex '%s' has an odd number of digits",
+			 hex_string);
+		return NULL;
+	}
+	int hex_bytes = hex_string_len / 2;
+	if (hex_bytes < TCP_HEX_OPTION_BASE ||
+	    hex_bytes > MAX_TCP_HEX_OPTION_BYTES + TCP_HEX_OPTION_BASE) {
+		asprintf(error, "TCP option hex '%s', length is illegal, must be in [%u, %u] bytes",
+			 hex_string, TCP_HEX_OPTION_BASE, MAX_TCP_HEX_OPTION_BYTES + TCP_HEX_OPTION_BASE);
+		return NULL;
+	}
+	if (parse_hex_byte(hex_string, &kind) ||
+	    parse_hex_byte(hex_string + 2, &length)) {
+		asprintf(error, "TCP option hex '%s', opcode or opsize is not a valid hex string",
+			 hex_string);
+		return NULL;
+	}
+	if (length != hex_bytes) {
+		asprintf(error, "TCP option hex '%s', optsize %u does't match the length of string",
+			 hex_string, length);
+		return NULL;
+	}
+
+	option = tcp_option_new(kind, length);
+
+	hex_string += 4;
+	if (parse_hex_string(hex_string, option->data.hex.data,
+			     sizeof(option->data.hex.data),
+			     &parsed_bytes)) {
+		free(option);
+		asprintf(error, "TCP option hex '%s', data is not a valid hex string", hex_string);
+		return NULL;
+	}
+
+	assert(parsed_bytes + TCP_HEX_OPTION_BASE == length);
+	return option;
+}
+
 static struct packet *append_gre(struct packet *packet, struct expression *expr)
 {
 	struct gre *gre = &expr->value.gre;
@@ -534,7 +587,7 @@ static struct packet *append_gre(struct packet *packet, struct expression *expr)
 %token <reserved> MSG_NAME MSG_IOV MSG_FLAGS MSG_CONTROL
 %token <reserved> CMSG_LEVEL CMSG_TYPE CMSG_DATA
 %token <reserved> FD EVENTS REVENTS ONOFF LINGER
-%token <reserved> U32 U64 PTR
+%token <reserved> U32 U64 PTR HEX
 %token <reserved> ACK ECR EOL MSS NOP SACK SACKOK TIMESTAMP VAL WIN WSCALE
 %token <reserved> URG MD5 FAST_OPEN FAST_OPEN_EXP
 %token <reserved> TOS FLAGS FLOWLABEL
@@ -1326,6 +1379,16 @@ tcp_option
 | FAST_OPEN_EXP opt_tcp_fast_open_cookie  {
 	char *error = NULL;
 	$$ = new_tcp_fast_open_option($2, &error, true);
+	free($2);
+	if ($$ == NULL) {
+		assert(error != NULL);
+		semantic_error(error);
+		free(error);
+	}
+}
+| HEX hex_blob {
+	char *error = NULL;
+	$$ = tcp_option_hex_string($2, &error);
 	free($2);
 	if ($$ == NULL) {
 		assert(error != NULL);

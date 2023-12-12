@@ -65,12 +65,9 @@ static int get_expected_tcp_option_length(u8 kind, u8 *expected_length,
 	case TCPOPT_MD5SIG:
 	case TCPOPT_FASTOPEN:
 	case TCPOPT_EXP:
+	default: /* tcp option in hex string */
 		*expected_length = 0;	/* variable-length option */
 		break;
-
-	default:
-		asprintf(error, "unexpected TCP option kind: %u", kind);
-		return STATUS_ERR;
 	}
 	return STATUS_OK;
 }
