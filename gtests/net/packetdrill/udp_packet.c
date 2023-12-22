@@ -31,6 +31,7 @@ struct packet *new_udp_packet(int address_family,
 			       enum direction_t direction,
 			       struct ip_info ip_info,
 			       u16 udp_payload_bytes,
+			       const char *udp_payload,
 			       u16 src_port,
 			       u16 dst_port,
 			       char **error)
@@ -60,6 +61,12 @@ struct packet *new_udp_packet(int address_family,
 		return NULL;
 	}
 
+	if (udp_payload && strlen(udp_payload) != udp_payload_bytes) {
+		asprintf(error, "UDP payload bytes (%d) does't match the size of payload (%s)",
+			 udp_payload_bytes, udp_payload);
+		return NULL;
+	}
+
 	/* Allocate and zero out a packet object of the desired size */
 	packet = packet_new(ip_bytes);
 	memset(packet->buffer, 0, ip_bytes);
@@ -85,6 +92,10 @@ struct packet *new_udp_packet(int address_family,
 	packet->udp->dst_port	= htons(dst_port);
 	packet->udp->len	= htons(udp_header_bytes + udp_payload_bytes);
 	packet->udp->check	= 0;
+
+	/* Copy UDP payload */
+	if (udp_payload)
+		memcpy((u8 *)packet->udp + udp_header_bytes, udp_payload, udp_payload_bytes);
 
 	packet->ip_bytes = ip_bytes;
 	return packet;

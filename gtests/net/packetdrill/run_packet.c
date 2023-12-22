@@ -2088,7 +2088,7 @@ int reset_connection(struct state *state, struct socket *socket)
 
 	packet = new_tcp_packet(socket->address_family,
 				DIRECTION_INBOUND, ip_info, 0, 0,
-				"R.", seq, 0, ack_seq, window, 0, NULL,
+				"R.", seq, 0, NULL, ack_seq, window, 0, NULL,
 				&error);
 	if (packet == NULL)
 		die("%s", error);

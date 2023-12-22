@@ -96,6 +96,7 @@ struct packet *new_tcp_packet(int address_family,
 			       const char *flags,
 			       u32 start_sequence,
 			       u16 tcp_payload_bytes,
+			       const char *tcp_payload,
 			       u32 ack_sequence,
 			       s32 window,
 			       u16 urg_ptr,
@@ -138,6 +139,12 @@ struct packet *new_tcp_packet(int address_family,
 
 	if (ip_bytes > MAX_TCP_DATAGRAM_BYTES) {
 		asprintf(error, "TCP segment too large");
+		return NULL;
+	}
+
+	if (tcp_payload && strlen(tcp_payload) != tcp_payload_bytes) {
+		asprintf(error, "TCP payload bytes (%d) does't match the size of payload (%s)",
+			 tcp_payload_bytes, tcp_payload);
 		return NULL;
 	}
 
@@ -215,6 +222,10 @@ struct packet *new_tcp_packet(int address_family,
 		memcpy(tcp_option_start, tcp_options->data,
 		       tcp_options->length);
 	}
+
+	/* Copy TCP payload */
+	if (tcp_payload)
+		memcpy((u8 *)packet->tcp + tcp_header_bytes, tcp_payload, tcp_payload_bytes);
 
 	packet->ip_bytes = ip_bytes;
 	return packet;

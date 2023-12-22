@@ -626,7 +626,7 @@ static struct packet *append_gre(struct packet *packet, struct expression *expr)
 %type <string> opt_tcp_fast_open_cookie hex_blob
 %type <string> opt_note note word_list
 %type <string> option_flag option_value script
-%type <string> opt_comma opt_equals
+%type <string> opt_comma opt_equals payload
 %type <window> opt_window
 %type <urg_ptr> opt_urg_ptr
 %type <sequence_number> opt_ack
@@ -837,7 +837,7 @@ packet_spec
 ;
 
 tcp_packet_spec
-: packet_prefix opt_ip_info opt_port_info flags seq opt_ack opt_window opt_urg_ptr opt_tcp_options {
+: packet_prefix opt_ip_info opt_port_info flags seq opt_ack opt_window opt_urg_ptr opt_tcp_options payload {
 	char *error = NULL;
 	struct packet *outer = $1, *inner = NULL;
 	enum direction_t direction = outer->direction;
@@ -855,7 +855,7 @@ tcp_packet_spec
 
 	inner = new_tcp_packet(in_config->wire_protocol,
 			       direction, $2, $3.src_port, $3.dst_port, $4,
-			       $5.start_sequence, $5.payload_bytes,
+			       $5.start_sequence, $5.payload_bytes, $10,
 			       $6, $7, $8, $9, &error);
 	free($4);
 	free($9);
@@ -870,7 +870,7 @@ tcp_packet_spec
 ;
 
 udp_packet_spec
-: packet_prefix opt_ip_info UDP opt_port_info '(' INTEGER ')' {
+: packet_prefix opt_ip_info UDP opt_port_info '(' INTEGER ')' payload {
 	char *error = NULL;
 	struct packet *outer = $1, *inner = NULL;
 	enum direction_t direction = outer->direction;
@@ -884,7 +884,7 @@ udp_packet_spec
 	}
 
 	inner = new_udp_packet(in_config->wire_protocol, direction, $2,
-			       $6, $4.src_port, $4.dst_port, &error);
+			       $6, $8, $4.src_port, $4.dst_port, &error);
 	if (inner == NULL) {
 		assert(error != NULL);
 		semantic_error(error);
@@ -1069,6 +1069,11 @@ opt_mpls_stack_bottom
 	free($2);
 	$$ = 1;
 }
+;
+
+payload
+:		{ $$ = NULL; }
+| STRING 	{ $$ = $1; }
 ;
 
 icmp_type
