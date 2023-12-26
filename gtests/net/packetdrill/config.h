@@ -134,6 +134,7 @@ struct config {
 	bool dry_run;			/* parse script but don't execute? */
 
 	bool verbose;			/* print detailed debug info? */
+	bool sockopt_hexstring;		/* print the string for sockopt in escape code */
 	char *script_path;		/* pathname of script file */
 
 	/* Shell command to invoke via system(3) to run post-processing code */

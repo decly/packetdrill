@@ -2615,9 +2615,11 @@ static int syscall_getsockopt(struct state *state, struct syscall_spec *syscall,
 		script_optval_pretty =
 			to_printable_string(
 				val_expression->value.buf.ptr,
-				val_expression->value.buf.len);
+				val_expression->value.buf.len,
+				state->config->sockopt_hexstring);
 		live_optval_pretty =
-			to_printable_string(live_optval, live_optlen);
+			to_printable_string(live_optval, live_optlen,
+					    state->config->sockopt_hexstring);
 
 		if (script_optlen != val_expression->value.buf.len) {
 			asprintf(error,

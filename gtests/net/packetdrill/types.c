@@ -45,7 +45,7 @@ void hex_dump(const u8 *buffer, int bytes, char **hex)
 	fclose(s);
 }
 
-char *to_printable_string(const char *in, int in_len)
+char *to_printable_string(const char *in, int in_len, bool hexstring)
 {
 	int out_len, i, j;
 	char *out;
@@ -55,8 +55,9 @@ char *to_printable_string(const char *in, int in_len)
 	out = malloc(out_len);
 
 	for (i = 0, j = 0; i < in_len; i++) {
-		if (isprint(in[i]) ||
-		    (i == in_len - 1 && in[i] == 0) /* terminating null */)
+		if (!hexstring &&
+		    (isprint(in[i]) ||
+		     (i == in_len - 1 && in[i] == 0) /* terminating null */))
 			out[j++] = in[i];
 		else
 			j += sprintf(out + j, "\\x%02hhx", in[i]);
