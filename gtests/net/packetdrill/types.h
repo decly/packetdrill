@@ -173,7 +173,10 @@ extern void hex_dump(const u8 *buffer, int bytes, char **hex);
 /* Return a malloc-allocated dump of the given buffer of the given length,
  * with non-printable bytes replaced by \xAB hex escape codes.
  */
-extern char *to_printable_string(const char *in, int in_len, bool hexstring);
+extern char *to_printable_string(const char *in, int in_len, char ellipsis_magic, bool hexstring);
+
+extern int string_ellipsis_memcmp(const void *s1, const void *s2, size_t n,
+				  char ellipsis_magic);
 
 static inline bool is_valid_u8(s64 x)
 {

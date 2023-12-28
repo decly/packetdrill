@@ -62,6 +62,9 @@ const char *expression_type_to_string(enum expression_t type);
 struct memory_buffer {
 	char *ptr;
 	size_t len;	/* does not include any terminating '\0' for strings */
+	int ellipsis_num;	/* number of ellipsis_magic, used only for EXPR_STRING */
+	char ellipsis_magic;	/* magic, used only for EXPR_STRING */
+#define DEFAULT_ELLIPSIS_MAGIC	0xee	/* replace the ellipsis with magic for "\..." */
 };
 
 /* An expression in a script */

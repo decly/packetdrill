@@ -45,7 +45,8 @@ void hex_dump(const u8 *buffer, int bytes, char **hex)
 	fclose(s);
 }
 
-char *to_printable_string(const char *in, int in_len, bool hexstring)
+char *to_printable_string(const char *in, int in_len,
+			  char ellipsis_magic, bool hexstring)
 {
 	int out_len, i, j;
 	char *out;
@@ -55,13 +56,29 @@ char *to_printable_string(const char *in, int in_len, bool hexstring)
 	out = malloc(out_len);
 
 	for (i = 0, j = 0; i < in_len; i++) {
-		if (!hexstring &&
-		    (isprint(in[i]) ||
-		     (i == in_len - 1 && in[i] == 0) /* terminating null */))
+		if (ellipsis_magic && in[i] == ellipsis_magic)
+			j += sprintf(out + j, "\\...");
+		else if (!hexstring &&
+			 (isprint(in[i]) ||
+			  (i == in_len - 1 && in[i] == 0) /* terminating null */))
 			out[j++] = in[i];
 		else
 			j += sprintf(out + j, "\\x%02hhx", in[i]);
 	}
 	out[j] = 0;
 	return out;
+}
+
+int string_ellipsis_memcmp(const void *s1, const void *s2, size_t n,
+			   char ellipsis_magic)
+{
+	if (ellipsis_magic) {
+		const char *p1 = s1, *p2 = s2;
+		for (size_t i = 0; i < n; i++) {
+			if (p1[i] != ellipsis_magic && p1[i] != p2[i])
+				return (p1[i] > p2[i]) ? 1 : -1;
+		}
+		return 0;
+	}
+	return memcmp(s1, s2, n);
 }

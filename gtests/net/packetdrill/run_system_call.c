@@ -2616,9 +2616,10 @@ static int syscall_getsockopt(struct state *state, struct syscall_spec *syscall,
 			to_printable_string(
 				val_expression->value.buf.ptr,
 				val_expression->value.buf.len,
+				val_expression->value.buf.ellipsis_magic,
 				state->config->sockopt_hexstring);
 		live_optval_pretty =
-			to_printable_string(live_optval, live_optlen,
+			to_printable_string(live_optval, live_optlen, 0,
 					    state->config->sockopt_hexstring);
 
 		if (script_optlen != val_expression->value.buf.len) {
@@ -2633,7 +2634,8 @@ static int syscall_getsockopt(struct state *state, struct syscall_spec *syscall,
 			goto error_out;
 		}
 
-		if (memcmp(live_optval, script_optval, script_optlen) != 0) {
+		if (string_ellipsis_memcmp(script_optval, live_optval, script_optlen,
+					   val_expression->value.buf.ellipsis_magic) != 0) {
 			asprintf(error,
 				 "Bad getsockopt optval: "
 				 "expected: '%s' actual: '%s'",

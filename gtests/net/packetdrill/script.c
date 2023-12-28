@@ -30,6 +30,7 @@
 #include "assert.h"
 #include "symbols.h"
 #include "gre.h"
+#include "logging.h"
 
 /* Fill in a value representing the given expression in
  * fully-evaluated form (e.g. symbols resolved to ints). On success,
@@ -223,6 +224,33 @@ char *flags_to_string(struct flag_name *flags_array, u64 flags)
 	return out;
 }
 
+static int verify_ellipsis_magic(struct expression *exp, char **error)
+{
+	char magic = exp->value.buf.ellipsis_magic;
+	int ellipsis_num = exp->value.buf.ellipsis_num;
+	char *p = exp->value.buf.ptr;
+	int i, count = 0;
+
+	if (magic) {
+		for (i = 0; i < exp->value.buf.len; i++) {
+			if (p[i] == magic)
+				count++;
+		}
+		if (count != ellipsis_num) {
+			asprintf(error,
+				 "The specified ellipsis magic '\\.%02x' conflicts with the data",
+				 (unsigned char)magic);
+			return STATUS_ERR;
+		}
+		DEBUGP("string ellipsis magic '\\.%02x' count %d\n",
+		       (unsigned char)magic, ellipsis_num);
+	} else {
+		assert(ellipsis_num == 0);
+	}
+
+	return STATUS_OK;
+}
+
 /* Fill in 'out' with an unescaped version of the input string. On
  * success, return STATUS_OK; on error, return STATUS_ERR and store
  * an error message in *error.
@@ -235,6 +263,8 @@ static int unescape_cstring_expression(const char *input_string,
 	out->value.buf.ptr = (char *)calloc(1, bytes + 1);
 	const char *c_in = input_string;
 	char *c_out = out->value.buf.ptr;
+	char ellipsis_magic = 0;
+	int ellipsis_num = 0;
 	while (*c_in != '\0') {
 		if (*c_in == '\\') {
 			++c_in;
@@ -275,6 +305,34 @@ static int unescape_cstring_expression(const char *input_string,
 					 c_in);
 				return STATUS_ERR;
 			}
+			case '.': { /* \... or \.hh means any bytes, where hh is magic */
+				++c_in;
+				if (strlen(c_in) >= 2) {
+					char s[] = { c_in[0], c_in[1], 0 };
+					char *end = NULL;
+					char magic = strtol(s, &end, 16);
+
+					if ((s[0] == '.' && s[1] == '.') || /* \... */
+					    (s[0] != '\0' && *end == '\0')) { /* \.hh  */
+						if (ellipsis_magic == 0)
+							ellipsis_magic = magic ? : DEFAULT_ELLIPSIS_MAGIC;
+						if (magic && ellipsis_magic != magic) {
+							asprintf(error,
+								 "Can't specify more than one ellipsis magic '\\.%02x' and '\\.%02x'",
+								 (unsigned char)ellipsis_magic, (unsigned char)magic);
+							return STATUS_ERR;
+						}
+						*c_out = ellipsis_magic;
+						++ellipsis_num;
+						++c_in;
+						break;
+					}
+				}
+				asprintf(error,
+					 "invalid ellipsis code (\\...): '\\.%s'",
+					 c_in);
+				return STATUS_ERR;
+			}
 			default:
 				asprintf(error, "unsupported escape code: '%c'",
 					 *c_in);
@@ -287,7 +345,10 @@ static int unescape_cstring_expression(const char *input_string,
 		++c_out;
 	}
 	out->value.buf.len = c_out - out->value.buf.ptr;
-	return STATUS_OK;
+	out->value.buf.ellipsis_magic = ellipsis_magic;
+	out->value.buf.ellipsis_num = ellipsis_num;
+
+	return verify_ellipsis_magic(out, error);
 }
 
 void free_expression(struct expression *expression)
@@ -405,9 +466,10 @@ void free_expression_list(struct expression_list *list)
 }
 
 /* Concatenate lhs and rhs into out. Each input may contain \x00 bytes. */
-static void concatenate_string_expressions(struct expression *out,
-					   struct expression *lhs,
-					   struct expression *rhs)
+static int concatenate_string_expressions(struct expression *out,
+					  struct expression *lhs,
+					  struct expression *rhs,
+					  char **error)
 {
 	char *dest;
 	u32 buf_len;
@@ -422,6 +484,18 @@ static void concatenate_string_expressions(struct expression *out,
 	memcpy(dest, rhs->value.buf.ptr, rhs->value.buf.len);
 	dest += rhs->value.buf.len;
 	*dest = '\0';  /* null-terminate for safety/debugging/printing */
+
+	char lhs_magic = lhs->value.buf.ellipsis_magic;
+	char rhs_magic = rhs->value.buf.ellipsis_magic;
+	if (lhs_magic && rhs_magic && lhs_magic != rhs_magic) {
+		asprintf(error,
+			 "Can't specify more than one ellipsis magic '\\.%02x' and '\\.%02x'",
+			 (unsigned char)lhs_magic, (unsigned char)rhs_magic);
+		return STATUS_ERR;
+	}
+	out->value.buf.ellipsis_magic = lhs_magic ? : rhs_magic;
+	out->value.buf.ellipsis_num = lhs->value.buf.ellipsis_num + rhs->value.buf.ellipsis_num;
+	return verify_ellipsis_magic(out, error);
 }
 
 static int evaluate_binary_expression(struct expression *in,
@@ -450,8 +524,7 @@ static int evaluate_binary_expression(struct expression *in,
 	} else if (strcmp(".", in->value.binary->op) == 0) {
 		if (lhs->type == EXPR_STRING && rhs->type == EXPR_STRING) {
 			out->type = EXPR_STRING;
-			concatenate_string_expressions(out, lhs, rhs);
-			result = STATUS_OK;
+			result = concatenate_string_expressions(out, lhs, rhs, error);
 		} else {
 			asprintf(error, "bad input types for concatenation");
 		}
