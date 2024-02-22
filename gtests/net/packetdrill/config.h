@@ -135,6 +135,7 @@ struct config {
 
 	bool verbose;			/* print detailed debug info? */
 	bool sockopt_hexstring;		/* print the string for sockopt in escape code */
+	bool outbound_port_match;	/* verify that outbound matches the tcp/udp port in script */
 	char *script_path;		/* pathname of script file */
 
 	/* Shell command to invoke via system(3) to run post-processing code */

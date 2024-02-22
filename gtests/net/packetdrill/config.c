@@ -73,6 +73,7 @@ enum option_codes {
 	OPT_SEND_OMIT_FREE,
 	OPT_DEBUG,
 	OPT_SOCKOPT_HEXSTRING,
+	OPT_OUTBOUND_PORT_MATCH,
 	OPT_DEFINE = 'D',	/* a '-D' single-letter option */
 	OPT_VERBOSE = 'v',	/* a '-v' single-letter option */
 };
@@ -115,6 +116,7 @@ struct option options[] = {
 	{ "define",		.has_arg = true,  NULL, OPT_DEFINE },
 	{ "verbose",		.has_arg = false, NULL, OPT_VERBOSE },
 	{ "sockopt_hexstring",	.has_arg = false, NULL, OPT_SOCKOPT_HEXSTRING },
+	{ "outbound_port_match",	.has_arg = false, NULL, OPT_OUTBOUND_PORT_MATCH },
 	{ NULL },
 };
 
@@ -157,6 +159,7 @@ void show_usage(void)
 		"\t[--define symbol1=val1 --define symbol2=val2 ...]\n"
 		"\t[--verbose|-v]\n"
 		"\t[--sockopt_hexstring]\n"
+		"\t[--outbound_port_match]\n"
 		"\tscript_path ...\n");
 }
 
@@ -630,6 +633,9 @@ static void process_option(int opt, char *optarg, struct config *config,
 		break;
 	case OPT_SOCKOPT_HEXSTRING:
 		config->sockopt_hexstring = true;
+		break;
+	case OPT_OUTBOUND_PORT_MATCH:
+		config->outbound_port_match = true;
 		break;
 	default:
 		show_usage();

@@ -168,6 +168,37 @@ static struct socket *find_socket_for_live_packet(
 	return NULL;
 }
 
+/* See if the live packet matches the 4-tuple of the script packet (UDP/TCP) */
+static struct socket *find_script_for_live_packet(
+	struct state *state, const struct packet *packet,
+	struct packet *script_packet,
+	enum direction_t *direction)
+{
+	struct socket *socket = state->socket_under_test;	/* shortcut */
+	if (socket == NULL)
+		return NULL;
+
+	struct tuple packet_tuple, script_tuple;
+	bool is_icmp = (socket->protocol == IPPROTO_ICMP && packet->icmpv4) ||
+		       (socket->protocol == IPPROTO_ICMPV6 && packet->icmpv6);
+	if (is_icmp)
+		return NULL;
+
+	get_packet_tuple(packet, &packet_tuple);
+	get_packet_tuple(script_packet, &script_tuple);
+	/* Get IP address from socket */
+	script_tuple.src.ip = socket->live.local.ip;
+	script_tuple.dst.ip = socket->live.remote.ip;
+	if (is_equal_tuple(&packet_tuple, &script_tuple)) {
+		*direction = DIRECTION_OUTBOUND;
+		DEBUGP("outbound live packet, socket in state %d\n",
+		       socket->state);
+		return socket;
+	}
+
+	return NULL;
+}
+
 /* See if the socket under test is listening and is willing to receive
  * this incoming SYN packet. If so, create a new child socket, anoint
  * it as the new socket under test, and return a pointer to
@@ -704,6 +735,7 @@ static int map_outbound_live_packet(
 	struct packet *live_packet,
 	struct packet *actual_packet,
 	struct packet *script_packet,
+	bool outbound_port_match,
 	char **error)
 {
 	DEBUGP("map_outbound_live_packet\n");
@@ -714,7 +746,8 @@ static int map_outbound_live_packet(
 	get_packet_tuple(live_packet, &live_packet_tuple);
 	socket_get_outbound(&socket->live, &live_outbound);
 	if (socket->protocol == IPPROTO_ICMP ||
-	    socket->protocol == IPPROTO_ICMPV6)
+	    socket->protocol == IPPROTO_ICMPV6 ||
+	    outbound_port_match) /* Do not check port here */
 		assert(is_equal_ip(&live_packet_tuple.src.ip, &live_outbound.src.ip) &&
 		       is_equal_ip(&live_packet_tuple.dst.ip, &live_outbound.dst.ip));
 	else
@@ -1451,7 +1484,8 @@ static int verify_outbound_live_packet(
 
 	/* Map live packet values into script space for easy comparison. */
 	if (map_outbound_live_packet(
-		    socket, live_packet, actual_packet, script_packet, error))
+		    socket, live_packet, actual_packet, script_packet,
+		    state->config->outbound_port_match,  error))
 		goto out;
 
 	/* Verify actual IP, TCP/UDP header values matched expected ones. */
@@ -1598,6 +1632,7 @@ static void dump_packet_fragment_mismatch(
 /* Sniff the next outbound live packet and return it. */
 static int sniff_outbound_live_packet(
 	struct state *state, struct socket *expected_socket,
+	struct packet *script_packet,
 	struct packet **packet, char **error)
 {
 	s64 expected_usecs =  state->event->time_usecs - state->script_last_time_usecs;
@@ -1636,6 +1671,14 @@ static int sniff_outbound_live_packet(
 						      &direction);
 		if ((socket != NULL) && (direction == DIRECTION_OUTBOUND))
 			break;
+		if (state->config->outbound_port_match) {
+			/* See if the packet matches the tuple of script packet. */
+			DEBUGP("sniff_outbound_live_packet: checking new sockets\n");
+			socket = find_script_for_live_packet(state, *packet,
+							     script_packet, &direction);
+			if ((socket != NULL) && (direction == DIRECTION_OUTBOUND))
+				break;
+		}
 		DEBUGP("sniff_outbound_live_packet: freeing packet\n");
 		packet_free(*packet);
 		*packet = NULL;
@@ -1769,8 +1812,8 @@ static int do_outbound_script_packet(
 		/* Sniff outbound live packet and verify it's for the right
 		 * socket.
 		 */
-		if (sniff_outbound_live_packet(state, socket, &live_packet,
-					       error))
+		if (sniff_outbound_live_packet(state, socket, packet,
+					       &live_packet, error))
 			goto out;
 		live_payload = packet_payload_len(live_packet);
 		DEBUGP("Sniffed packet with payload %d bytes\n", live_payload);

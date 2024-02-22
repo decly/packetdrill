@@ -1501,8 +1501,10 @@ static int run_syscall_accept(struct state *state,
 		    (socket->state == SOCKET_PASSIVE_PACKET_RECEIVED) || /* ackcookie */
 		    (socket->state == SOCKET_PASSIVE_SYNACK_ACKED)) {
 			assert(is_equal_ip(&socket->live.remote.ip, &ip));
-			assert(is_equal_port(socket->live.remote.port,
-					     htons(port)));
+			/* Do not check port while outbound_port_match is enabled */
+			if (!state->config->outbound_port_match)
+				assert(is_equal_port(socket->live.remote.port,
+						     htons(port)));
 			socket->fd.script_fd	= script_accepted_fd;
 			socket->fd.live_fd	= live_accepted_fd;
 			return STATUS_OK;
