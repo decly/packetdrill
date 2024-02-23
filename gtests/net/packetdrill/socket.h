@@ -230,7 +230,7 @@ static inline void set_icmp_echoed_tuple(struct packet *packet,
 	 * which so far always means the first ICMP_ECHO_BYTES of
 	 * TCP header.
 	 */
-	DEBUGP("set_icmp_echoed_tuple");
+	DEBUGP("set_icmp_echoed_tuple\n");
 
 	/* Flip the direction of the tuple, since the ICMP message is
 	 * flowing in the direction opposite that of the echoed TCP/IP
@@ -238,6 +238,17 @@ static inline void set_icmp_echoed_tuple(struct packet *packet,
 	 */
 	struct tuple echoed_tuple;
 	reverse_tuple(tuple, &echoed_tuple);
+
+	/* If echoed port is specified in the script, use. See new_icmp_packet() */	
+	__be16 *echoed_src_port = packet_echoed_tcpudp_src_port(packet);
+	if (*echoed_src_port)
+		echoed_tuple.src.port = *echoed_src_port;
+	__be16 *echoed_dst_port = packet_echoed_tcpudp_dst_port(packet);
+	if (*echoed_dst_port)
+		echoed_tuple.dst.port = *echoed_dst_port;
+	DEBUGP("set_icmp_echoed_tuple: echoed port %d -> %d\n",
+	       ntohs(echoed_tuple.src.port), ntohs(echoed_tuple.dst.port));
+
 	set_headers_tuple(packet_echoed_ipv4_header(packet),
 			  packet_echoed_ipv6_header(packet),
 			  packet_echoed_tcp_header(packet),

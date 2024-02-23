@@ -423,4 +423,42 @@ static inline u32 *packet_echoed_tcp_seq(struct packet *packet)
 	return seq;
 }
 
+static inline __be16 *packet_echoed_tcpudp_src_port(struct packet *packet)
+{
+	if (packet_echoed_ip_protocol(packet) == IPPROTO_TCP) {
+		struct tcp *echoed_tcp = (struct tcp *)(packet_echoed_layer4_header(packet));
+		assert(echoed_tcp);
+		__be16 *src_port = &(echoed_tcp->src_port);
+		assert((char *) (src_port + 1) <= (char *) echoed_tcp + ICMP_ECHO_BYTES);
+		return src_port;
+	}
+	else if (packet_echoed_ip_protocol(packet) == IPPROTO_UDP) {
+		struct udp *echoed_udp = (struct udp *)(packet_echoed_layer4_header(packet));
+		assert(echoed_udp);
+		__be16 *src_port = &(echoed_udp->src_port);
+		assert((char *) (src_port + 1) <= (char *) echoed_udp + ICMP_ECHO_BYTES);
+		return src_port;
+	}
+	return NULL;
+}
+
+static inline __be16 *packet_echoed_tcpudp_dst_port(struct packet *packet)
+{
+	if (packet_echoed_ip_protocol(packet) == IPPROTO_TCP) {
+		struct tcp *echoed_tcp = (struct tcp *)(packet_echoed_layer4_header(packet));
+		assert(echoed_tcp);
+		__be16 *dst_port = &(echoed_tcp->dst_port);
+		assert((char *) (dst_port + 1) <= (char *) echoed_tcp + ICMP_ECHO_BYTES);
+		return dst_port;
+	}
+	else if (packet_echoed_ip_protocol(packet) == IPPROTO_UDP) {
+		struct udp *echoed_udp = (struct udp *)(packet_echoed_layer4_header(packet));
+		assert(echoed_udp);
+		__be16 *dst_port = &(echoed_udp->dst_port);
+		assert((char *) (dst_port + 1) <= (char *) echoed_udp + ICMP_ECHO_BYTES);
+		return dst_port;
+	}
+	return NULL;
+}
+
 #endif /* __PACKET_H__ */

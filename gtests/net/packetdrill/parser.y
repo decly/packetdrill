@@ -896,7 +896,7 @@ udp_packet_spec
 ;
 
 icmp_packet_spec
-: packet_prefix opt_ip_info ICMP icmp_type opt_icmp_code opt_icmp_mtu
+: packet_prefix opt_ip_info ICMP opt_port_info icmp_type opt_icmp_code opt_icmp_mtu
   opt_icmp_echo_id opt_icmp_echoed {
 	char *error = NULL;
 	struct packet *outer = $1, *inner = NULL;
@@ -907,11 +907,12 @@ icmp_packet_spec
 		semantic_error("[ect01] can only be used with outbound packets");
 	}
 
-	inner = new_icmp_packet(in_config->wire_protocol, direction, $4, $5,
-				$8.protocol, $8.start_sequence,
-				$8.payload_bytes, $2, $6, $7, &error);
-	free($4);
+	inner = new_icmp_packet(in_config->wire_protocol, direction, $5, $6,
+				$9.protocol, $9.start_sequence,
+				$9.payload_bytes, $2, $7, $8,
+				$4.src_port, $4.dst_port, &error);
 	free($5);
+	free($6);
 	if (inner == NULL) {
 		semantic_error(error);
 		free(error);

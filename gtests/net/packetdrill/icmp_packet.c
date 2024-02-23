@@ -293,6 +293,8 @@ struct packet *new_icmp_packet(int address_family,
 				struct ip_info ip_info,
 				s64 mtu,
 				s64 echo_id,
+				u16 echo_src_port,
+				u16 echo_dst_port,
 				char **error)
 {
 	s32 type = -1;	/* bad type; means "unknown so far" */
@@ -388,6 +390,14 @@ struct packet *new_icmp_packet(int address_family,
 					     payload_bytes);
 		set_ip_header(echoed_ip, address_family, echoed_ip_bytes,
 			      0, 0, 0, protocol);
+		if (echo_src_port) {
+			__be16 *echoed_src_port = packet_echoed_tcpudp_src_port(packet);
+			*echoed_src_port = ntohs(echo_src_port);
+		}
+		if (echo_dst_port) {
+			__be16 *echoed_dst_port = packet_echoed_tcpudp_dst_port(packet);
+			*echoed_dst_port = ntohs(echo_dst_port);
+		}
 		if (protocol == IPPROTO_TCP) {
 			u32 *seq = packet_echoed_tcp_seq(packet);
 			*seq = htonl(tcp_start_sequence);

@@ -50,6 +50,8 @@ extern struct packet *new_icmp_packet(int address_family,
 				      struct ip_info ip_info,
 				      s64 mtu,
 				      s64 echo_id,
+				      u16 echo_src_port,
+				      u16 echo_dst_port,
 				      char **error);
 
 #endif /* __ICMP_PACKET_H__ */
