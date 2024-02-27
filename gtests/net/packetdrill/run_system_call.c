@@ -2471,6 +2471,8 @@ static int syscall_ioctl(struct state *state, struct syscall_spec *syscall,
 
 		if (s32_bracketed_arg(args, 2, &script_optval, error))
 			return STATUS_ERR;
+		/* Need to put the script's value to parameter */
+		live_optval = script_optval;
 
 		begin_syscall(state, syscall);
 
