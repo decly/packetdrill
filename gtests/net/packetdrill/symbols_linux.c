@@ -46,6 +46,7 @@
 
 #include "epoll.h"
 #include "ip.h"
+#include "ipv6.h"
 #include "tcp.h"
 #include "capability.h"
 
@@ -163,11 +164,13 @@ struct int_symbol platform_symbols_table[] = {
 #ifdef IP_MTU
 	{ IP_MTU,                           "IP_MTU"                          },
 #endif
+	{ IP_TRANSPARENT,                   "IP_TRANSPARENT"                  },
 #ifdef IPV6_MTU
 	{ IPV6_MTU,                         "IPV6_MTU"                        },
 #endif
 	{ IPV6_TCLASS,                      "IPV6_TCLASS"                     },
 	{ IPV6_HOPLIMIT,                    "IPV6_HOPLIMIT"                   },
+	{ IPV6_TRANSPARENT,                 "IPV6_TRANSPARENT"                },
 
 	{ TCP_NODELAY,                      "TCP_NODELAY"                     },
 	{ TCP_MAXSEG,                       "TCP_MAXSEG"                      },
